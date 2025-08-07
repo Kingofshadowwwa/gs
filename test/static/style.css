@@ -1,0 +1,87 @@
+.login{     height: 20px;
+            width: 100%;
+            box-sizing: border-box;
+            border-radius: 8px;
+            margin: 10px;
+        }
+        .logo{
+            height: 300px;
+            padding: 40px;
+        }
+        img.avatars{
+        height: 100px;
+        border-radius: 30px;
+                }
+        .body-menu{
+              position: static;
+              background-size: 100%;
+              background-image:url('/static/cecabaac30736b17f7f278422ef861c0.gif') ;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              flex-direction: column;
+              color:aliceblue;
+              font-size: 30px;
+        }
+        .menu{
+                display: flex;
+                margin:10%;
+                border-radius: 10px;
+                padding: 3%;
+                background: #211339;
+                flex-direction: row;
+                align-items: center;
+        }
+        .btn {
+            height: 46px;
+            width: 100%;
+	display: inline-block;
+	box-sizing: border-box;
+	padding: 0 25px;
+	margin: 0 15px 15px 0;
+	outline: none;
+	border: 1px solid #352d44;
+	border-radius: 50px;
+	line-height: 46px;
+	font-size: 14px;
+	font-weight: 600;
+	text-decoration: none;
+	color: #444;
+	background-color: #352d44;
+	box-shadow: 0 4px 6px rgb(65 132 144 / 10%), 0 1px 3px rgb(0 0 0 / 8%);
+	cursor: pointer;
+	user-select: none;
+	appearance: none;
+	touch-action: manipulation;
+	vertical-align: top;
+	transition: box-shadow 0.2s;
+}
+.btn:focus-visible {
+	border: 1px solid #4c51f9;
+	outline: none;
+}
+.btn:hover {
+	transition: all 0.2s;
+	box-shadow: 0 7px 14px rgb(65 132 144 / 10%), 0 3px 6px rgb(0 0 0 / 8%);
+}
+.btn:active {
+	background-color: #808080;
+}
+.btn:disabled {
+	background-color: #eee;
+	border-color: #eee;
+	color: #444;
+	cursor: not-allowed;
+}
+.menu-menu{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+.frends{
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+}
+
+rgba(0, 0, 0, 0.25) 0px 54px 55px 0px, rgba(0, 0, 0, 0.12) 0px -12px 30px 0px, rgba(0, 0, 0, 0.12) 0px 4px 6px 0px, rgba(0, 0, 0, 0.17) 0px 12px 13px 0px, rgba(0, 0, 0, 0.09) 0px -3px 5px 0px

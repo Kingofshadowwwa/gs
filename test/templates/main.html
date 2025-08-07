@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="/static/style.css">
+    <meta charset="UTF-8">
+    <style>
+        div::-webkit-scrollbar {
+            width: 10px;
+        }
+        div::-webkit-scrollbar-track {
+            background: #3c2f53;
+        }
+        div::-webkit-scrollbar-thumb {
+            background-color: #888;
+            border-radius: 5px;
+        }
+        div::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        #call-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 9999;
+        }
+    </style>
+    <title>VMS Chat</title>
+</head>
+<body class="body-menu">
+    <div style="display: flex; border-radius: 10px; padding: 3%; background: rgba(33, 19, 57, 0.6); min-height: 40vw; min-width: 90vw; flex-direction: row; margin:1%;">
+        <div>
+            <div class="menu-menu">
+                <img class="avatars" src="{{ img }}">
+                <p style="font-size:20;">{{ user }}</p>
+            </div>
+            <div style="width: 300px; height: 400px; overflow-y: auto; border: 0px solid #ccc; padding: 10px;" id="friends-list">
+                {% for i in frend %}
+                    <div style="display: flex; align-items: center; flex-direction: row;">
+                        <img style="height: 70px;" class="avatars" src="{{ img_friends[i] }}">
+                        <p class="user-item" data-username="{{ i }}">{{ i }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div>
+            <div style="display: flex; justify-content: center; flex-direction: column; align-items: center;">
+                <p id="name_send"> VMS </p>
+            </div>
+            <div id="chat-box" style="border-radius: 10px; display: flex; padding: 10px; font-size: 17px; height: 300px; overflow-y: auto; background: rgba(92, 55, 156, 0.1); min-height: 60vh; min-width: 100vh; flex-direction: column;"></div>
+
+            <input type="text" id="chat-input" placeholder="Введите сообщение...">
+            <button id="send-button">Отправить</button>
+            <button id="call-button" data-username="">Позвонить</button>
+        </div>
+    </div>
+
+    <div id="call-overlay">
+        <p id="call-status"></p>
+        <button id="accept-call">Принять</button>
+        <button id="decline-call">Отклонить</button>
+    </div>
+
+    <script>
+        let currentChatUser = null;
+        let ws = null;
+        let pc = null;
+        let incomingOffer = null;
+
+        async function loadChat() {
+            if (!currentChatUser) return;
+
+            const response = await fetch(`/get_chat?user=${currentChatUser}`);
+            const chatData = await response.json();
+
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = '';
+
+            chatData.messages.forEach(msg => {
+                const msgElement = document.createElement('p');
+                msgElement.textContent = msg;
+                chatBox.appendChild(msgElement);
+            });
+
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function connectWebSocket() {
+            ws = new WebSocket(`ws://${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.type === 'chat') {
+                    if (data.sender === currentChatUser || data.receiver === currentChatUser) {
+                        const chatBox = document.getElementById('chat-box');
+                        const msgElement = document.createElement('p');
+                        msgElement.textContent = `${data.sender}: ${data.message}`;
+                        chatBox.appendChild(msgElement);
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    }
+                }
+
+                if (data.type === 'offer') {
+                    showCallOverlay(`Входящий звонок от ${data.sender}`);
+                    incomingOffer = data;
+                }
+
+                if (data.type === 'answer') {
+                    pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                }
+
+                if (data.type === 'candidate') {
+                    pc.addIceCandidate(data.candidate);
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected. Reconnecting...');
+                setTimeout(connectWebSocket, 1000);
+            };
+        }
+
+        document.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('user-item')) {
+                currentChatUser = e.target.getAttribute('data-username');
+                document.getElementById('name_send').textContent = `Чат с: ${currentChatUser}`;
+                document.getElementById('call-button').setAttribute('data-username', currentChatUser);
+                await loadChat();
+            }
+        });
+
+        document.getElementById('send-button').addEventListener('click', () => {
+            const messageInput = document.getElementById('chat-input');
+            const message = messageInput.value.trim();
+
+            if (!currentChatUser || !message) return;
+
+            ws.send(JSON.stringify({
+                type: 'chat',
+                receiver: currentChatUser,
+                message: message
+            }));
+
+            messageInput.value = '';
+
+            const chatBox = document.getElementById('chat-box');
+            const msgElement = document.createElement('p');
+            msgElement.textContent = `Вы: ${message}`;
+            chatBox.appendChild(msgElement);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        });
+
+        document.getElementById('chat-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('send-button').click();
+            }
+        });
+
+        document.getElementById('call-button').addEventListener('click', () => {
+            const targetUser = document.getElementById('call-button').getAttribute('data-username');
+            if (!targetUser) {
+                alert('Выберите пользователя для звонка!');
+                return;
+            }
+            showCallOverlay(`Звонок пользователю ${targetUser}...`);
+            startCall(targetUser);
+        });
+
+        document.getElementById('accept-call').addEventListener('click', () => {
+            hideCallOverlay();
+            acceptCall();
+        });
+
+        document.getElementById('decline-call').addEventListener('click', () => {
+            hideCallOverlay();
+            incomingOffer = null;
+        });
+
+        function showCallOverlay(statusText) {
+            document.getElementById('call-status').textContent = statusText;
+            document.getElementById('call-overlay').style.display = 'flex';
+        }
+
+        function hideCallOverlay() {
+            document.getElementById('call-overlay').style.display = 'none';
+        }
+
+        async function startCall(receiver) {
+            pc = new RTCPeerConnection();
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({
+                        type: 'candidate',
+                        receiver: receiver,
+                        candidate: event.candidate
+                    }));
+                }
+            };
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            ws.send(JSON.stringify({
+                type: 'offer',
+                receiver: receiver,
+                sender: document.cookie.match(/name=([^;]+)/)[1],
+                offer: offer
+            }));
+        }
+
+        async function acceptCall() {
+            if (!incomingOffer) return;
+
+            pc = new RTCPeerConnection();
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({
+                        type: 'candidate',
+                        receiver: incomingOffer.sender,
+                        candidate: event.candidate
+                    }));
+                }
+            };
+
+            await pc.setRemoteDescription(new RTCSessionDescription(incomingOffer.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            ws.send(JSON.stringify({
+                type: 'answer',
+                receiver: incomingOffer.sender,
+                answer: answer
+            }));
+
+            incomingOffer = null;
+        }
+
+        connectWebSocket();
+    </script>
+</body>
+</html>
